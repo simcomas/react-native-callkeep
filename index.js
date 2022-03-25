@@ -291,6 +291,10 @@ class RNCallKeep {
       return false;
     }
 
+    if (options.hideNotification) {
+      return false;
+    }
+
     const showAccountAlert = await RNCallKeepModule.checkPhoneAccountPermission(options.additionalPermissions || []);
     const shouldOpenAccounts = await this._alert(options, showAccountAlert);
 
