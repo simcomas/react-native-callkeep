@@ -734,14 +734,6 @@ RCT_EXPORT_METHOD(getAudioRoutes: (RCTPromiseResolveBlock)resolve
         default:
             break;
     }
-    /**
-       endCallWithUUID may have been called from AppDelegate.m
-       We need to let JS know that the call has ended so it can make 
-       any necessary updates to application state
-   */
-   RNCallKeep *callKeep = [RNCallKeep allocWithZone: nil];
-   [callKeep sendEventWithNameWrapper:RNCallKeepPerformEndCallAction body:@{ @"callUUID": [uuidString lowercaseString] }];
- }
 }
 
 + (void)reportNewIncomingCall:(NSString *)uuidString
