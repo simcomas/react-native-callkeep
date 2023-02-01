@@ -218,13 +218,11 @@ public class RNCallKeepModule extends ReactContextBaseJavaModule {
 
     @ReactMethod
     public void setSettings(ReadableMap options) {
+        Log.d(TAG, "[RNCallKeepModule] setSettings : " + options);
         if (options == null) {
             return;
         }
-        Log.d(TAG, "[RNCallKeepModule] setSettings: " + options);
-        storeSettings(options);
-
-        _settings = getSettings(null);
+        _settings = storeSettings(options);
     }
 
     @ReactMethod
@@ -239,7 +237,7 @@ public class RNCallKeepModule extends ReactContextBaseJavaModule {
 
     @ReactMethod
     public void setup(ReadableMap options) {
-        Log.d(TAG, "[RNCallKeepModule] setup");
+        Log.d(TAG, "[RNCallKeepModule] setup : " + options);
 
         VoiceConnectionService.setAvailable(false);
         VoiceConnectionService.setInitialized(true);
@@ -270,7 +268,7 @@ public class RNCallKeepModule extends ReactContextBaseJavaModule {
 
     @ReactMethod
     public void registerPhoneAccount(ReadableMap options) {
-        storeSettings(options);
+        setSettings(options);
 
         if (!isConnectionServiceAvailable()) {
             Log.w(TAG, "[RNCallKeepModule] registerPhoneAccount ignored due to no ConnectionService");
@@ -394,6 +392,9 @@ public class RNCallKeepModule extends ReactContextBaseJavaModule {
             Log.w(TAG, "[RNCallKeepModule] endCall ignored because no connection found, uuid: " + uuid);
             return;
         }
+        Context context = this.getAppContext();
+        AudioManager audioManager = (AudioManager) context.getSystemService(context.AUDIO_SERVICE);
+        audioManager.setMode(0);
         conn.onDisconnect();
 
         Log.d(TAG, "[RNCallKeepModule] endCall executed, uuid: " + uuid);
@@ -806,7 +807,7 @@ public class RNCallKeepModule extends ReactContextBaseJavaModule {
             settings.putMap("foregroundService", MapUtils.readableToWritableMap(foregroundServerSettings));
         }
 
-        storeSettings(settings);
+        setSettings(settings);
     }
 
     @ReactMethod
@@ -840,7 +841,7 @@ public class RNCallKeepModule extends ReactContextBaseJavaModule {
             return;
         }
 
-        if (Build.MANUFACTURER.equalsIgnoreCase("Samsung")) {
+        if (Build.MANUFACTURER.equalsIgnoreCase("Samsung") || Build.MANUFACTURER.equalsIgnoreCase("OnePlus")) {
             Intent intent = new Intent();
             intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_MULTIPLE_TASK);
             intent.setComponent(new ComponentName("com.android.server.telecom",
@@ -970,7 +971,7 @@ public class RNCallKeepModule extends ReactContextBaseJavaModule {
         telecomManager.registerPhoneAccount(account);
     }
 
-    private void sendEventToJS(String eventName, @Nullable WritableMap params) {
+    public void sendEventToJS(String eventName, @Nullable WritableMap params) {
         boolean isBoundToJS = this.reactContext.hasActiveCatalystInstance();
         Log.v(TAG, "[RNCallKeepModule] sendEventToJS, eventName: " + eventName + ", bound: " + isBoundToJS + ", hasListeners: " + hasListeners + " args : " + (params != null ? params.toString() : "null"));
 
@@ -1056,11 +1057,11 @@ public class RNCallKeepModule extends ReactContextBaseJavaModule {
     }
 
     // Store all callkeep settings in JSON
-    private void storeSettings(ReadableMap options) {
-        Context context = getInstance(null, false).getAppContext();
+    private WritableMap storeSettings(ReadableMap options) {
+        Context context = getAppContext();
         if (context == null) {
             Log.w(TAG, "[RNCallKeepModule][storeSettings] no react context found.");
-            return;
+            return MapUtils.readableToWritableMap(options);
         }
 
         SharedPreferences sharedPref = context.getSharedPreferences("rn-callkeep", Context.MODE_PRIVATE);
@@ -1069,15 +1070,17 @@ public class RNCallKeepModule extends ReactContextBaseJavaModule {
             String jsonString = jsonObject.toString();
             sharedPref.edit().putString("settings", jsonString).apply();
         } catch (JSONException e) {
+            Log.w(TAG, "[RNCallKeepModule][storeSettings] exception: " + e);
         }
+        return MapUtils.readableToWritableMap(options);
     }
 
     private static void fetchStoredSettings(@Nullable Context fromContext) {
-        if (instance == null && fromContext == null) {
+        Context context = fromContext != null ? fromContext : instance.getAppContext();
+        if (instance == null && context == null) {
             Log.w(TAG, "[RNCallKeepModule][fetchStoredSettings] no instance nor fromContext.");
             return;
         }
-        Context context = fromContext != null ? fromContext : instance.getAppContext();
         _settings = new WritableNativeMap();
         if (context == null) {
             Log.w(TAG, "[RNCallKeepModule][fetchStoredSettings] no react context found.");
